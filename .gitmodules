@@ -1,0 +1,6 @@
+[submodule "packages/jsPDF"]
+	path = packages/jsPDF
+	url = git@github.com:parallax/jsPDF.git
+[submodule "packages/fontkit"]
+	path = packages/fontkit
+	url = git@github.com:foliojs/fontkit.git
