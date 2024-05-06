@@ -24,10 +24,10 @@ index 6acc501..dd560d2 100644
  import { range } from './utils';
  
 diff --git a/packages/fontkit/src/opentype/shapers/IndicShaper.js b/packages/fontkit/src/opentype/shapers/IndicShaper.js
-index 104198c..4d3f5a6 100644
+index 104198c..00fc2a5 100644
 --- a/packages/fontkit/src/opentype/shapers/IndicShaper.js
 +++ b/packages/fontkit/src/opentype/shapers/IndicShaper.js
-@@ -897,8 +897,12 @@ function finalReordering(font, glyphs, plan) {
+@@ -897,7 +897,7 @@ function finalReordering(font, glyphs, plan) {
      }
  
      // Apply 'init' to the Left Matra if it's a word start.
@@ -36,8 +36,18 @@ index 104198c..4d3f5a6 100644
        glyphs[start].features.init = true;
      }
    }
- }
 Submodule packages/jsPDF contains modified content
+diff --git a/packages/jsPDF/.gitignore b/packages/jsPDF/.gitignore
+index aa6c5ffe..5b93e01a 100644
+--- a/packages/jsPDF/.gitignore
++++ b/packages/jsPDF/.gitignore
+@@ -1,5 +1,6 @@
+ .vscode
+ .idea
++.turbo/
+ .DS_Store
+ node_modules/
+ coverage/
 diff --git a/packages/jsPDF/package.json b/packages/jsPDF/package.json
 index 14c7eebf..7e8786b9 100644
 --- a/packages/jsPDF/package.json

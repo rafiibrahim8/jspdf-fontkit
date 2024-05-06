@@ -41,7 +41,7 @@ export default defineConfig({
       buildStart() {
         console.info("Generating trie data...");
         execSync(
-          "exit 0; npm run trie:data && npm run trie:use && npm run trie:indic",
+          "npm run trie:data && npm run trie:use && npm run trie:indic",
           {
             cwd: resolve(__dirname, "../fontkit"),
           }
