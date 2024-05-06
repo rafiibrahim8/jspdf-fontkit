@@ -1,0 +1,10 @@
+{
+  "scripts": {
+    "build": "turbo run build --filter=jspdf-fontkit",
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "devDependencies": {
+    "turbo": "1.13.3",
+    "prettier": "3.2.5"
+  }
+}

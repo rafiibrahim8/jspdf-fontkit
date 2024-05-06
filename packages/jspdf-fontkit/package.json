@@ -1,0 +1,15 @@
+{
+    "name": "jspdf-fontkit",
+    "version": "1.0.0",
+    "main": "dist/index.mjs",
+    "scripts": {
+        "build": "vite build"
+    },
+    "keywords": [],
+    "devDependencies": {
+        "fontkit": "workspace:*",
+        "typescript": "5.2.2",
+        "vite": "^5.2.11",
+        "vite-plugin-babel": "^1.2.0"
+    }
+}
