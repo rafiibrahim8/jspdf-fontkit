@@ -3,7 +3,7 @@
     "version": "1.0.0",
     "main": "dist/index.mjs",
     "scripts": {
-        "build": "sh -c 'cd ../fontkit && npm run trie:data && npm run trie:use && npm run trie:indic' && vite build"
+        "build": "vite build --emptyOutDir"
     },
     "keywords": [],
     "devDependencies": {

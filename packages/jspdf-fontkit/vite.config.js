@@ -3,7 +3,6 @@ import { resolve } from "path";
 import { defineConfig } from "vite";
 import JsPdfPkg from "../jsPDF/package.json";
 import fontKitPkg from "../fontkit/package.json";
-import { execSync } from "child_process";
 
 const outDir = resolve(__dirname, "../../lib");
 
@@ -28,13 +27,4 @@ export default defineConfig({
       external: jsPdfOptionalDeps,
     },
   },
-  plugins: [
-    {
-      name: "empty-outdir",
-      buildStart() {
-        console.info(`Cleaning output directory: ${outDir}`);
-        execSync(`rm -rf "${outDir}"`);
-      },
-    },
-  ],
 });

@@ -1,6 +1,6 @@
 {
   "scripts": {
-    "build": "turbo run build --filter=jspdf-fontkit",
+    "build": "sh -c 'cd packages/fontkit && npm run trie:data && npm run trie:use && npm run trie:indic' && turbo run build --filter=jspdf-fontkit",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "devDependencies": {
