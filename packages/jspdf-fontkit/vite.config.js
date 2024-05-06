@@ -36,18 +36,5 @@ export default defineConfig({
         execSync(`rm -rf "${outDir}"`);
       },
     },
-    {
-      name: "generate-json",
-      buildStart() {
-        console.info("Generating trie data...");
-        execSync(
-          "npm run trie:data && npm run trie:use && npm run trie:indic",
-          {
-            cwd: resolve(__dirname, "../fontkit"),
-          }
-        );
-        console.info("Trie data generated.");
-      },
-    },
   ],
 });
