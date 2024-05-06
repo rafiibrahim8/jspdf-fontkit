@@ -34,10 +34,6 @@ index 104198c..4d3f5a6 100644
 -    if (glyphs[start].shaperInfo.position === POSITIONS.Pre_M && (!start || !/Cf|Mn/.test(getCategory(glyphs[start - 1].codePoints[0])))) {
 +    if (glyphs[start].shaperInfo.position === POSITIONS.Pre_M && (!start || !/Cf|Mn|Mc|Lo/.test(getCategory(glyphs[start - 1].codePoints[0])))) {
        glyphs[start].features.init = true;
-+      console.log({
-+        codeponts: glyphs[start-1].codePoints,
-+        category: getCategory(glyphs[start-1].codePoints[0])
-+      })
      }
    }
  }
