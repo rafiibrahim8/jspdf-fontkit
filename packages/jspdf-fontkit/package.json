@@ -11,6 +11,12 @@
     "glyph",
     "fontkit"
   ],
+  "files": [
+    "lib",
+    "types",
+    "README.md",
+    "LICENSE"
+  ],
   "main": "lib/jspdf-fontkit.mjs",
   "license": "MIT",
   "repository": {

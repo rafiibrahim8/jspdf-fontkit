@@ -1,0 +1,49 @@
+name: Publish `zod-forms` to NPM
+on:
+  push:
+    branches:
+      - production
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: 'recursive'
+      
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20.x'
+          registry-url: 'https://registry.npmjs.org'
+      
+      - name: Check for new version
+        uses: salsify/action-detect-and-tag-new-version@v2
+        id: detect-new-version
+        with:
+          create-tag: false
+          version-command: |
+            jq -r '.version' packages/zod-forms/package.json
+      
+      - name: Publish to NPM
+        if: steps.detect-new-version.outputs.previous-version != steps.detect-new-version.outputs.current-version
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: |
+          echo "Applying patch..."
+          patch -p1 < submodules.patch
+
+          echo "Installing pnpm..."
+          sudo npm install -g pnpm
+
+          echo "Installing dependencies..."
+          pnpm install
+
+          echo "Building..."
+          pnpm run build
+
+          echo "Publishing..."
+          cd packages/jspdf-fontkit
+          pnpm publish --access public --no-git-checks
