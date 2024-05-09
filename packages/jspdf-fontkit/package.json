@@ -1,6 +1,6 @@
 {
   "name": "jspdf-fontkit",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "description": "JsPDF with fontkit for complex glyph support",
   "typings": "types/index.d.ts",
   "types": "types/index.d.ts",
@@ -17,7 +17,7 @@
     "README.md",
     "LICENSE"
   ],
-  "main": "lib/jspdf-fontkit.mjs",
+  "main": "lib/jspdf-fontkit.js",
   "license": "MIT",
   "repository": {
     "type": "git",
