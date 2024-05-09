@@ -1,4 +1,13 @@
 Submodule packages/fontkit contains modified content
+diff --git a/packages/fontkit/.gitignore b/packages/fontkit/.gitignore
+index 1528b2f..06bb25c 100644
+--- a/packages/fontkit/.gitignore
++++ b/packages/fontkit/.gitignore
+@@ -14,3 +14,4 @@ indic.trie
+ indic.json
+ dist
+ .parcel-cache
++.turbo/
 diff --git a/packages/fontkit/package.json b/packages/fontkit/package.json
 index ac40182..5834538 100644
 --- a/packages/fontkit/package.json
@@ -212,3 +221,16 @@ index 91ce1285..34583f27 100644
      unicodeMap +=
        "endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend";
      return unicodeMap;
+diff --git a/packages/jsPDF/types/index.d.ts b/packages/jsPDF/types/index.d.ts
+index 8a955307..141de269 100644
+--- a/packages/jsPDF/types/index.d.ts
++++ b/packages/jsPDF/types/index.d.ts
+@@ -49,7 +49,7 @@
+  *    kim3er, mfo, alnorth, Flamenco
+  */
+ 
+-declare module "jspdf" {
++declare module "jspdf-fontkit" {
+   export interface Annotation {
+     type: "text" | "freetext" | "link";
+     title?: string;

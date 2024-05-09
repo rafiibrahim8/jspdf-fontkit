@@ -1,15 +1,36 @@
 {
-    "name": "jspdf-fontkit",
-    "version": "1.0.0",
-    "main": "dist/index.mjs",
-    "scripts": {
-        "build": "vite build --emptyOutDir"
-    },
-    "keywords": [],
-    "devDependencies": {
-        "fontkit": "workspace:*",
-        "typescript": "5.2.2",
-        "vite": "^5.2.11",
-        "vite-plugin-babel": "^1.2.0"
+  "name": "jspdf-fontkit",
+  "version": "0.0.1",
+  "description": "JsPDF with fontkit for complex glyph support",
+  "typings": "types/index.d.ts",
+  "types": "types/index.d.ts",
+  "type": "module",
+  "keywords": [
+    "pdf",
+    "font",
+    "glyph",
+    "fontkit"
+  ],
+  "main": "lib/jspdf-fontkit.mjs",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rafiibrahim8/jspdf-fontkit.git"
+  },
+  "contributors": [
+    {
+      "name": "Rafi Ibrahim",
+      "email": "rafiibrahim8@hotmail.com",
+      "url": "https://ibrahimrafi.me"
     }
+  ],
+  "scripts": {
+    "build": "vite build --emptyOutDir"
+  },
+  "devDependencies": {
+    "fontkit": "workspace:*",
+    "typescript": "5.2.2",
+    "vite": "^5.2.11",
+    "vite-plugin-babel": "^1.2.0"
+  }
 }
