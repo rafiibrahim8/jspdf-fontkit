@@ -1,6 +1,6 @@
 {
   "name": "jspdf-fontkit",
-  "version": "0.0.2",
+  "version": "0.0.3",
   "description": "JsPDF with fontkit for complex glyph support",
   "typings": "types/index.d.ts",
   "types": "types/index.d.ts",

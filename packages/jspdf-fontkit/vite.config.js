@@ -8,7 +8,7 @@ import fontKitPkg from "../fontkit/package.json";
 const outDir = resolve(__dirname, "lib");
 const typesDir = resolve(__dirname, "types");
 
-jsPdfOptionalDeps = [
+const jsPdfOptionalDeps = [
   ...Object.keys(JsPdfPkg.peerDependencies || {}),
   ...Object.keys(JsPdfPkg.optionalDependencies || {}),
   ...Object.keys(fontKitPkg.peerDependencies || {}),
