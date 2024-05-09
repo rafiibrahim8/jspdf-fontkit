@@ -1,4 +1,4 @@
-name: Publish `zod-forms` to NPM
+name: Publish to NPM
 on:
   push:
     branches:
