@@ -1,50 +1,26 @@
 Submodule packages/fontkit contains modified content
 diff --git a/packages/fontkit/.gitignore b/packages/fontkit/.gitignore
-index 1528b2f..06bb25c 100644
+index d31f456..794f501 100644
 --- a/packages/fontkit/.gitignore
 +++ b/packages/fontkit/.gitignore
-@@ -14,3 +14,4 @@ indic.trie
- indic.json
+@@ -10,3 +10,4 @@ coverage.html
+ .nyc_output
  dist
  .parcel-cache
 +.turbo/
-diff --git a/packages/fontkit/package.json b/packages/fontkit/package.json
-index ac40182..5834538 100644
---- a/packages/fontkit/package.json
-+++ b/packages/fontkit/package.json
-@@ -76,7 +76,7 @@
-     "url": "git://github.com/foliojs/fontkit.git"
-   },
-   "dependencies": {
--    "@swc/helpers": "^0.4.2",
-+    "@swc/helpers": "^0.5.0",
-     "brotli": "^1.3.2",
-     "clone": "^2.1.2",
-     "dfa": "^1.2.0",
-diff --git a/packages/fontkit/src/CmapProcessor.js b/packages/fontkit/src/CmapProcessor.js
-index 6acc501..dd560d2 100644
---- a/packages/fontkit/src/CmapProcessor.js
-+++ b/packages/fontkit/src/CmapProcessor.js
-@@ -1,5 +1,5 @@
- import { binarySearch } from './utils';
--import { encodingExists, getEncoding, getEncodingMapping } from './encodings';
-+import { getEncoding, getEncodingMapping } from './encodings';
- import { cache } from './decorators';
- import { range } from './utils';
- 
 diff --git a/packages/fontkit/src/opentype/shapers/IndicShaper.js b/packages/fontkit/src/opentype/shapers/IndicShaper.js
-index 104198c..00fc2a5 100644
+index 392eca0..b19b9cc 100644
 --- a/packages/fontkit/src/opentype/shapers/IndicShaper.js
 +++ b/packages/fontkit/src/opentype/shapers/IndicShaper.js
-@@ -897,7 +897,7 @@ function finalReordering(font, glyphs, plan) {
-     }
- 
+@@ -1059,7 +1059,7 @@ function finalReordering(font, glyphs, plan) {
      // Apply 'init' to the Left Matra if it's a word start.
--    if (glyphs[start].shaperInfo.position === POSITIONS.Pre_M && (!start || !/Cf|Mn/.test(getCategory(glyphs[start - 1].codePoints[0])))) {
-+    if (glyphs[start].shaperInfo.position === POSITIONS.Pre_M && (!start || !/Cf|Mn|Mc|Lo/.test(getCategory(glyphs[start - 1].codePoints[0])))) {
+     if (
+       glyphs[start].shaperInfo.position === POSITIONS.Pre_M &&
+-      (!start || !/Cf|Mn/.test(getCategory(glyphs[start - 1].codePoints[0])))
++      (!start || !/Cf|Mn|Mc|Lo/.test(getCategory(glyphs[start - 1].codePoints[0])))
+     ) {
        glyphs[start].features.init = true;
      }
-   }
 Submodule packages/jsPDF contains modified content
 diff --git a/packages/jsPDF/.gitignore b/packages/jsPDF/.gitignore
 index aa6c5ffe..5b93e01a 100644
@@ -58,19 +34,40 @@ index aa6c5ffe..5b93e01a 100644
  node_modules/
  coverage/
 diff --git a/packages/jsPDF/package.json b/packages/jsPDF/package.json
-index 14c7eebf..7e8786b9 100644
+index 8fcb894d..3a5ce3ed 100644
 --- a/packages/jsPDF/package.json
 +++ b/packages/jsPDF/package.json
-@@ -86,7 +86,8 @@
+@@ -93,7 +93,8 @@
+     "rollup-plugin-node-resolve": "5.2.0",
      "rollup-plugin-preprocess": "0.0.4",
-     "rollup-plugin-terser": "^6.1.0",
-     "typescript": "^3.9.6",
+     "typescript": "^5.6.2",
 -    "yarpm": "^0.2.1"
 +    "yarpm": "^0.2.1",
 +    "fontkit": "workspace:*"
    },
    "scripts": {
      "start": "ws",
+diff --git a/packages/jsPDF/src/modules/png_support.js b/packages/jsPDF/src/modules/png_support.js
+index 43b9362a..163c35d2 100644
+--- a/packages/jsPDF/src/modules/png_support.js
++++ b/packages/jsPDF/src/modules/png_support.js
+@@ -448,7 +448,15 @@ function processAlphaPNG(decodedPng) {
+   const colorBytes = new Uint8Array(colorByteLen);
+   const alphaBytes = new Uint8Array(alphaByteLen);
+ 
+-  const dataView = new DataView(data.buffer);
++  // 16-bit data comes as a Uint16Array in platform byte order; readSample
++  // expects MSB-first bytes.
++  const bytes =
++    data instanceof Uint16Array ? convertUint16ArrayToUint8Array(data) : data;
++  const dataView = new DataView(
++    bytes.buffer,
++    bytes.byteOffset,
++    bytes.byteLength
++  );
+   const colorView = new DataView(colorBytes.buffer);
+   const alphaView = new DataView(alphaBytes.buffer);
+ 
 diff --git a/packages/jsPDF/src/modules/ttfsupport.js b/packages/jsPDF/src/modules/ttfsupport.js
 index 06d139ff..eaa66e9c 100644
 --- a/packages/jsPDF/src/modules/ttfsupport.js
@@ -222,7 +219,7 @@ index 91ce1285..34583f27 100644
        "endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend";
      return unicodeMap;
 diff --git a/packages/jsPDF/types/index.d.ts b/packages/jsPDF/types/index.d.ts
-index 8a955307..141de269 100644
+index fd21f959..5c21bce2 100644
 --- a/packages/jsPDF/types/index.d.ts
 +++ b/packages/jsPDF/types/index.d.ts
 @@ -49,7 +49,7 @@
