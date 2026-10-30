@@ -2,3 +2,13 @@ packages:
   - 'packages/*'
 allowBuilds:
   core-js: false
+# Supply-chain policies
+minimumReleaseAge: 10080 # 7 days
+minimumReleaseAgeExclude:
+  - dfa@2.0.0 # only 2.x release (required by fontkit); verified against git source
+trustPolicy: no-downgrade
+trustPolicyExclude:
+  # Older release lines published without provenance after newer ones had it
+  - semver@6.3.1
+  - undici-types@6.21.0
+blockExoticSubdeps: true

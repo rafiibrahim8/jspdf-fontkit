@@ -47,6 +47,27 @@ index 8fcb894d..3a5ce3ed 100644
    },
    "scripts": {
      "start": "ws",
+diff --git a/packages/jsPDF/src/modules/png_support.js b/packages/jsPDF/src/modules/png_support.js
+index 43b9362a..163c35d2 100644
+--- a/packages/jsPDF/src/modules/png_support.js
++++ b/packages/jsPDF/src/modules/png_support.js
+@@ -448,7 +448,15 @@ function processAlphaPNG(decodedPng) {
+   const colorBytes = new Uint8Array(colorByteLen);
+   const alphaBytes = new Uint8Array(alphaByteLen);
+ 
+-  const dataView = new DataView(data.buffer);
++  // 16-bit data comes as a Uint16Array in platform byte order; readSample
++  // expects MSB-first bytes.
++  const bytes =
++    data instanceof Uint16Array ? convertUint16ArrayToUint8Array(data) : data;
++  const dataView = new DataView(
++    bytes.buffer,
++    bytes.byteOffset,
++    bytes.byteLength
++  );
+   const colorView = new DataView(colorBytes.buffer);
+   const alphaView = new DataView(alphaBytes.buffer);
+ 
 diff --git a/packages/jsPDF/src/modules/ttfsupport.js b/packages/jsPDF/src/modules/ttfsupport.js
 index 06d139ff..eaa66e9c 100644
 --- a/packages/jsPDF/src/modules/ttfsupport.js

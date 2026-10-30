@@ -5,6 +5,16 @@
             "dependsOn": ["^build"],
             "outputs": ["dist/**"]
         },
+        "jspdf-fontkit#build": {
+            "dependsOn": ["^build"],
+            "inputs": [
+                "$TURBO_DEFAULT$",
+                "$TURBO_ROOT$/packages/jsPDF/src/**",
+                "$TURBO_ROOT$/packages/jsPDF/types/**",
+                "$TURBO_ROOT$/packages/jsPDF/package.json"
+            ],
+            "outputs": ["lib/**", "types/**"]
+        },
         "dev": {
             "dependsOn": ["build"],
             "persistent": true,
