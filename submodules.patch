@@ -47,6 +47,90 @@ index 8fcb894d..3a5ce3ed 100644
    },
    "scripts": {
      "start": "ws",
+diff --git a/packages/jsPDF/src/jspdf.js b/packages/jsPDF/src/jspdf.js
+index cf95600a..a0d30635 100644
+--- a/packages/jsPDF/src/jspdf.js
++++ b/packages/jsPDF/src/jspdf.js
+@@ -3723,6 +3723,10 @@ function jsPDF(options) {
+         activeFontSize: activeFontSize
+       }
+     };
++    // Each line as given, before shaping/bidi reorder it for display
++    var logicalText = (Array.isArray(text) ? text : [text]).map(function(line) {
++      return Array.isArray(line) ? line[0] : line;
++    });
+     events.publish("preProcessText", payload);
+ 
+     text = payload.text;
+@@ -4000,13 +4004,16 @@ function jsPDF(options) {
+         pdfEscape: pdfEscape,
+         activeFontKey: activeFontKey,
+         fonts: fonts,
+-        activeFontSize: activeFontSize
++        activeFontSize: activeFontSize,
++        logicalText: logicalText
+       }
+     };
+     events.publish("postProcessText", payload);
+ 
+     text = payload.text;
+     isHex = payload.mutex.isHex || false;
++    var actualText = payload.mutex.actualText || [];
++    var positionedText = payload.mutex.positionedText || [];
+ 
+     //Escaping
+     var activeFontEncoding = fonts[activeFontKey].encoding;
+@@ -4091,6 +4098,19 @@ function jsPDF(options) {
+         wordSpacing = wordSpacingPerLine[lineIndex] + " Tw\n";
+       }
+ 
++      // Glyphs placed by the shaper (e.g. vowel signs under a consonant)
++      // need their own operators; others are shown as one string
++      content = positionedText[lineIndex] || content + " Tj";
++      // Tell PDF readers which text to copy/search for this line's glyphs
++      if (actualText[lineIndex]) {
++        content =
++          "/Span <</ActualText <" +
++          actualText[lineIndex] +
++          ">>> BDC\n" +
++          content +
++          "\nEMC";
++      }
++
+       if (lineIndex === 0) {
+         text.push(
+           wordSpacing +
+@@ -4108,8 +4128,8 @@ function jsPDF(options) {
+       }
+     }
+ 
+-    text = variant === STRING ? text.join(" Tj\nT* ") : text.join(" Tj\n");
+-    text += " Tj\n";
++    text = variant === STRING ? text.join("\nT* ") : text.join("\n");
++    text += "\n";
+ 
+     var result = "BT\n/";
+     result += activeFontKey + " " + activeFontSize + " Tf\n"; // font face, style, size
+diff --git a/packages/jsPDF/src/libs/utf16be.js b/packages/jsPDF/src/libs/utf16be.js
+new file mode 100644
+index 00000000..25d8c120
+--- /dev/null
++++ b/packages/jsPDF/src/libs/utf16be.js
+@@ -0,0 +1,14 @@
++/**
++ * Encodes a string as the hex digits of a UTF-16BE PDF text string with a
++ * byte order mark, for use as <...> in content streams.
++ *
++ * @param {string} text
++ * @returns {string}
++ */
++export function toUTF16BEHex(text) {
++  var hex = "FEFF";
++  for (var i = 0; i < text.length; i++) {
++    hex += ("0000" + text.charCodeAt(i).toString(16)).slice(-4);
++  }
++  return hex;
++}
 diff --git a/packages/jsPDF/src/modules/png_support.js b/packages/jsPDF/src/modules/png_support.js
 index 43b9362a..163c35d2 100644
 --- a/packages/jsPDF/src/modules/png_support.js
@@ -67,6 +151,43 @@ index 43b9362a..163c35d2 100644
 +  );
    const colorView = new DataView(colorBytes.buffer);
    const alphaView = new DataView(alphaBytes.buffer);
+ 
+diff --git a/packages/jsPDF/src/modules/total_pages.js b/packages/jsPDF/src/modules/total_pages.js
+index bef62e7c..57a8bb60 100644
+--- a/packages/jsPDF/src/modules/total_pages.js
++++ b/packages/jsPDF/src/modules/total_pages.js
+@@ -25,6 +25,7 @@
+  */
+ 
+ import { jsPDF } from "../jspdf.js";
++import { toUTF16BEHex } from "../libs/utf16be.js";
+ 
+ /**
+  * jsPDF total_pages plugin
+@@ -59,12 +60,20 @@ import { jsPDF } from "../jspdf.js";
+       );
+     }
+ 
++    // The expression may also be in the /ActualText of a custom font's line
++    var actualTextExpression = new RegExp(
++      toUTF16BEHex(pageExpression).slice(4),
++      "g"
++    );
++    var actualTextTotal = toUTF16BEHex(
++      this.internal.getNumberOfPages() + ""
++    ).slice(4);
++
+     for (var n = 1; n <= this.internal.getNumberOfPages(); n++) {
+       for (var i = 0; i < this.internal.pages[n].length; i++) {
+-        this.internal.pages[n][i] = this.internal.pages[n][i].replace(
+-          replaceExpression,
+-          totalNumberOfPages
+-        );
++        this.internal.pages[n][i] = this.internal.pages[n][i]
++          .replace(replaceExpression, totalNumberOfPages)
++          .replace(actualTextExpression, actualTextTotal);
+       }
+     }
  
 diff --git a/packages/jsPDF/src/modules/ttfsupport.js b/packages/jsPDF/src/modules/ttfsupport.js
 index 06d139ff..eaa66e9c 100644
@@ -89,10 +210,32 @@ index 06d139ff..eaa66e9c 100644
        encoding: {},
        kerning: {},
 diff --git a/packages/jsPDF/src/modules/utf8.js b/packages/jsPDF/src/modules/utf8.js
-index 91ce1285..34583f27 100644
+index 91ce1285..d8ddea3a 100644
 --- a/packages/jsPDF/src/modules/utf8.js
 +++ b/packages/jsPDF/src/modules/utf8.js
-@@ -18,36 +18,42 @@ import { toPDFName } from "../libs/pdfname.js";
+@@ -1,5 +1,6 @@
+ import { jsPDF } from "../jspdf.js";
+ import { toPDFName } from "../libs/pdfname.js";
++import { toUTF16BEHex } from "../libs/utf16be.js";
+ 
+ /**
+  * @name utf8
+@@ -15,39 +16,271 @@ import { toPDFName } from "../libs/pdfname.js";
+   /*   the corresponding glyph id and width, and then adding padding to the string.                  */
+   /***************************************************************************************************/
+   var pdfEscape16 = (jsPDFAPI.pdfEscape16 = function(text, font) {
++    return encodeGlyphRun(text, font).hex;
++  });
++
++  /*
++   * Shapes text into glyph ids. Also returns, as UTF-16BE hex, the text a PDF
++   * reader should copy for these glyphs when the ToUnicode map alone would get
++   * it wrong (e.g. reordered vowel signs, right-to-left runs); null otherwise.
++   * logicalText is the line before Arabic shaping and bidi reordering, if known.
++   * With fontSize, also returns operators that draw the glyphs at the
++   * positions fontkit computed, when the font widths alone would not.
++   */
++  var encodeGlyphRun = function(text, font, logicalText, fontSize) {
      var widths = font.metadata.Unicode.widths;
      var padz = ["", "0", "00", "000", "0000"];
      var ar = [""];
@@ -103,12 +246,18 @@ index 91ce1285..34583f27 100644
 -      if (widths.indexOf(t) == -1) {
 -        widths.push(t);
 -        widths.push([parseInt(font.metadata.widthOfGlyph(t), 10)]);
-+    var glyphRun = font.metadata.fontkit.layout(text);
++    var shaped = shapeGlyphs(text, font.metadata.fontkit);
++    var glyphs = shaped.glyphs;
++    var glyphWidths = [];
++    var sourceText = typeof logicalText === "string" ? logicalText : text;
++    var drawnText = drawableText(sourceText, font.metadata.fontkit);
++    var mappedText = "";
 +
-+    for (var i = 0, l = glyphRun.glyphs.length; i < l; ++i) {
-+      var glyph_ = glyphRun.glyphs[i];
++    for (var i = 0, l = glyphs.length; i < l; ++i) {
++      var glyph_ = glyphs[i];
++      var codePoints = withoutPresentationForms(glyph_.codePoints);
 +      font.metadata.glyIdsUsed.push(glyph_.id);
-+      font.metadata.toUnicode[glyph_.id] = glyph_.codePoints;
++      font.metadata.toUnicode[glyph_.id] = codePoints;
 +      if (widths.indexOf(glyph_.id) == -1) {
 +        widths.push(glyph_.id);
 +        widths.push([parseInt(font.metadata.widthOfGlyph(glyph_.id), 10)]);
@@ -116,28 +265,237 @@ index 91ce1285..34583f27 100644
 -      if (t == "0") {
 +      if (glyph_.id == 0) {
          //Spaces are not allowed in cmap.
-         return ar.join("");
+-        return ar.join("");
++        break;
        } else {
 -        t = t.toString(16);
 -        ar.push(padz[4 - t.length], t);
++        glyphWidths.push(parseInt(font.metadata.widthOfGlyph(glyph_.id), 10));
 +        var glyphHex = glyph_.id.toString(16);
 +        ar.push(padz[4 - glyphHex.length], glyphHex);
++        mappedText += String.fromCodePoint.apply(null, codePoints);
        }
      }
 -    return ar.join("");
-+  return ar.join("");
++    var positioned =
++      fontSize === undefined
++        ? null
++        : positionedGlyphs(
++            glyphs.slice(0, glyphWidths.length),
++            shaped.positions,
++            glyphWidths,
++            font.metadata.fontkit.unitsPerEm,
++            fontSize
++          );
++    // Readers put right-to-left text in order from the glyph positions, so
++    // it copies correctly per glyph; a line-level /ActualText would not.
++    // Repositioned glyphs (e.g. a mark moved under the previous letter) can
++    // also be read out of order, so those lines always get one.
++    var needsActualText =
++      (mappedText !== drawnText || positioned !== null) &&
++      !RTL.test(drawnText);
++    return {
++      hex: ar.join(""),
++      actualText: needsActualText ? toUTF16BEHex(drawnText) : null,
++      positioned: positioned
++    };
++  };
++
++  var RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/;
++  var PRESENTATION_FORM = /[\uFB50-\uFDFF\uFE70-\uFEFF]/;
++  var NEUTRAL = /[\p{Script=Common}\p{Script=Inherited}]/u;
++  // Scripts that get runs of their own; letters of any other script share one
++  var SCRIPTS = [
++    "Latin", "Bengali", "Devanagari", "Arabic", "Hebrew", "Gurmukhi",
++    "Gujarati", "Oriya", "Tamil", "Telugu", "Kannada", "Malayalam", "Sinhala",
++    "Thai", "Lao", "Tibetan", "Myanmar", "Khmer", "Greek", "Cyrillic",
++    "Armenian", "Georgian", "Syriac", "Thaana", "Ethiopic", "Mongolian",
++    "Hangul", "Han", "Hiragana", "Katakana"
++  ].map(function(name) {
++    return { name: name, pattern: new RegExp("\\p{Script=" + name + "}", "u") };
    });
  
 -  var toUnicodeCmap = function(map) {
 -    var code, codes, range, unicode, unicodeMap, _i, _len;
-+  var toUnicodeCmap = function (map) {
-+    var glyphIdHex, unicodeHex, range, unicodeMap, _i, _len, range_multiUnicode;
-     unicodeMap =
-       "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo <<\n  /Registry (Adobe)\n  /Ordering (UCS)\n  /Supplement 0\n>> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000><ffff>\nendcodespacerange";
+-    unicodeMap =
+-      "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo <<\n  /Registry (Adobe)\n  /Ordering (UCS)\n  /Supplement 0\n>> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000><ffff>\nendcodespacerange";
 -    codes = Object.keys(map).sort(function(a, b) {
 -      return a - b;
--    });
--
++  var scriptOf = function(character) {
++    if (NEUTRAL.test(character)) {
++      return null;
++    }
++    for (var i = 0; i < SCRIPTS.length; i++) {
++      if (SCRIPTS[i].pattern.test(character)) {
++        return SCRIPTS[i].name;
++      }
++    }
++    return "Other";
++  };
++
++  /*
++   * Splits text into runs of a single script, since fontkit shapes a whole
++   * string as one script (taken from its first letter). Spaces, punctuation,
++   * joiners and other script-neutral characters stay in the run they follow;
++   * leading ones go with the first run.
++   */
++  var scriptRuns = function(text) {
++    var runs = [];
++    var leading = "";
++    Array.from(text).forEach(function(character) {
++      var script = scriptOf(character);
++      var last = runs[runs.length - 1];
++      if (script === null) {
++        if (last) {
++          last.text += character;
++        } else {
++          leading += character;
++        }
++      } else if (last && last.script === script) {
++        last.text += character;
++      } else {
++        runs.push({ script: script, text: leading + character });
++        leading = "";
++      }
+     });
++    if (leading) {
++      runs.push({ script: null, text: leading });
++    }
++    return runs;
++  };
+ 
++  /*
++   * Arabic arrives already shaped (presentation forms) and in visual order
++   * from the arabic module, so it is mapped straight to glyphs: shaping it
++   * again would reverse it and form wrong ligatures. Every other run,
++   * including Hebrew (still in logical order), is shaped by fontkit.
++   *
++   * Returns the glyphs, and for each the position fontkit computed, or null
++   * where the glyph is placed by its font width alone: Arabic, and scripts
++   * without marks to position, which keep their output (and kerning) as is.
++   */
++  var shapeGlyphs = function(text, fontkitFont) {
++    var shaped = { glyphs: [], positions: [] };
++    scriptRuns(text).forEach(function(run) {
++      if (run.script === "Arabic") {
++        fontkitFont.glyphsForString(run.text).forEach(function(glyph) {
++          shaped.glyphs.push(glyph);
++          shaped.positions.push(null);
++        });
++        return;
++      }
++      var glyphRun = fontkitFont.layout(run.text);
++      var positioned = UNPOSITIONED.indexOf(run.script) === -1;
++      var spaceId = fontkitFont.glyphForCodePoint(0x20).id;
++      glyphRun.glyphs.forEach(function(glyph, i) {
++        var position = glyphRun.positions[i];
++        // fontkit hides default ignorables (ZWJ, ZWNJ, ...) as zero-advance
++        // spaces; drop them, since unpositioned glyphs get their font width
++        if (glyph.id === spaceId && position.xAdvance === 0) {
++          return;
++        }
++        shaped.glyphs.push(glyph);
++        shaped.positions.push(positioned ? position : null);
++      });
++    });
++    return shaped;
++  };
++  var UNPOSITIONED = [null, "Latin", "Greek", "Cyrillic"];
++
++  /*
++   * Content stream operators that draw the glyphs where fontkit placed them
++   * (e.g. a vowel sign under its consonant), using TJ adjustments for x and
++   * text rise (Ts) for y. Null when the font widths already place them so.
++   * widths are the glyph widths (1/1000 em) the PDF advances by.
++   */
++  var positionedGlyphs = function(glyphs, positions, widths, unitsPerEm, fontSize) {
++    var scale = 1000 / unitsPerEm;
++    var operators = [];
++    var items = [];
++    var hex = "";
++    var drift = 0; // where the PDF pen is, minus where fontkit's pen is
++    var rise = 0;
++    var adjusted = false;
++    var flush = function() {
++      if (hex) {
++        items.push("<" + hex + ">");
++        hex = "";
++      }
++      if (items.length) {
++        operators.push("[" + items.join(" ") + "] TJ");
++        items = [];
++      }
++    };
++    for (var i = 0; i < glyphs.length; i++) {
++      var position = positions[i];
++      var xOffset = position ? position.xOffset * scale : 0;
++      var yOffset = position ? Math.round(position.yOffset * scale) : 0;
++      var advance = position ? position.xAdvance * scale : widths[i];
++      var move = Math.round(xOffset - drift);
++      if (move !== 0) {
++        if (hex) {
++          items.push("<" + hex + ">");
++          hex = "";
++        }
++        items.push(-move);
++        drift += move;
++        adjusted = true;
++      }
++      if (yOffset !== rise) {
++        flush();
++        rise = yOffset;
++        operators.push(+((rise / 1000) * fontSize).toFixed(3) + " Ts");
++        adjusted = true;
++      }
++      hex += ("0000" + glyphs[i].id.toString(16)).slice(-4);
++      drift += widths[i] - advance;
++    }
++    flush();
++    if (rise !== 0) {
++      operators.push("0 Ts");
++    }
++    return adjusted ? operators.join("\n") : null;
++  };
++
++  /*
++   * The Arabic module hands us presentation forms; map their glyphs back to
++   * the letters, so copied text is what was typed. Readers reverse the letters
++   * of a right-to-left glyph, so ligatures (lam-alef, ...) are stored reversed.
++   */
++  var withoutPresentationForms = function(codePoints) {
++    var text = String.fromCodePoint.apply(null, codePoints);
++    if (!PRESENTATION_FORM.test(text)) {
++      return codePoints;
++    }
++    return Array.from(text.normalize("NFKC"), function(c) {
++      return c.codePointAt(0);
++    }).reverse();
++  };
++
++  /*
++   * The part of text that gets drawn: characters the font lacks are dropped
++   * (see utf8TextFunction), except that a missing character below U+0100
++   * reaches the shaper as glyph 0 and ends the line there.
++   */
++  var drawableText = function(text, fontkitFont) {
++    var drawn = "";
++    for (var i = 0; i < text.length; ) {
++      var codePoint = text.codePointAt(i);
++      var character = String.fromCodePoint(codePoint);
++      if (fontkitFont.hasGlyphForCodePoint(codePoint)) {
++        drawn += character;
++      } else if (codePoint < 256) {
++        break;
++      }
++      i += character.length;
++    }
++    return drawn;
++  };
++
++  var toUnicodeCmap = function (map) {
++    var glyphIdHex, unicodeHex, range, unicodeMap, _i, _len, range_multiUnicode;
++    unicodeMap =
++      "/CIDInit /ProcSet findresource begin\n12 dict begin\nbegincmap\n/CIDSystemInfo <<\n  /Registry (Adobe)\n  /Ordering (UCS)\n  /Supplement 0\n>> def\n/CMapName /Adobe-Identity-UCS def\n/CMapType 2 def\n1 begincodespacerange\n<0000><ffff>\nendcodespacerange";
 +    var glyphIds = Object.keys(map)
 +      .sort(function (a, b) {
 +        return a - b;
@@ -154,7 +512,7 @@ index 91ce1285..34583f27 100644
        if (range.length >= 100) {
          unicodeMap +=
            "\n" +
-@@ -57,15 +63,40 @@ import { toPDFName } from "../libs/pdfname.js";
+@@ -57,15 +290,40 @@ import { toPDFName } from "../libs/pdfname.js";
            "\nendbfchar";
          range = [];
        }
@@ -203,7 +561,7 @@ index 91ce1285..34583f27 100644
        }
      }
  
-@@ -77,6 +108,14 @@ import { toPDFName } from "../libs/pdfname.js";
+@@ -77,6 +335,14 @@ import { toPDFName } from "../libs/pdfname.js";
          range.join("\n") +
          "\nendbfchar\n";
      }
@@ -218,6 +576,109 @@ index 91ce1285..34583f27 100644
      unicodeMap +=
        "endcmap\nCMapName currentdict /CMap defineresource pop\nend\nend";
      return unicodeMap;
+@@ -302,6 +568,8 @@ import { toPDFName } from "../libs/pdfname.js";
+       }
+     }
+     var result = "";
++    var actualText = null;
++    var positioned = null;
+     if (parseInt(key.slice(1)) < 14 || encoding === "WinAnsiEncoding") {
+       //For the default 13 font
+       result = pdfEscape(str, key)
+@@ -311,12 +579,22 @@ import { toPDFName } from "../libs/pdfname.js";
+         })
+         .join("");
+     } else if (encoding === "Identity-H") {
+-      result = pdfEscape16(str, fonts[key]);
++      var encoded = encodeGlyphRun(
++        str,
++        fonts[key],
++        args.logicalText,
++        mutex.activeFontSize
++      );
++      result = encoded.hex;
++      actualText = encoded.actualText;
++      positioned = encoded.positioned;
+     }
+     mutex.isHex = true;
+ 
+     return {
+       text: result,
++      actualText: actualText,
++      positioned: positioned,
+       x: x,
+       y: y,
+       options: options,
+@@ -331,6 +609,10 @@ import { toPDFName } from "../libs/pdfname.js";
+       options = parms.options,
+       mutex = parms.mutex;
+     var tmpText = [];
++    // Per line: UTF-16BE hex for a /ActualText span, or null
++    var actualText = [];
++    // Per line: operators drawing positioned glyphs, or null for plain Tj
++    var positionedText = [];
+     var args = {
+       text: text,
+       x: x,
+@@ -338,35 +620,43 @@ import { toPDFName } from "../libs/pdfname.js";
+       options: options,
+       mutex: mutex
+     };
++    // Only usable while lines still match up one to one (justify splits them)
++    var lineCount = Array.isArray(text) ? text.length : 1;
++    var logicalText =
++      mutex.logicalText && mutex.logicalText.length === lineCount
++        ? mutex.logicalText
++        : [];
++    var encodeLine = function(line) {
++      var encoded = utf8TextFunction(
++        Object.assign({}, args, {
++          text: line,
++          logicalText: logicalText[actualText.length]
++        })
++      );
++      actualText.push(encoded.actualText);
++      positionedText.push(encoded.positioned);
++      return encoded.text;
++    };
+ 
+     if (Array.isArray(text)) {
+       var i = 0;
+       for (i = 0; i < text.length; i += 1) {
+         if (Array.isArray(text[i])) {
+           if (text[i].length === 3) {
+-            tmpText.push([
+-              utf8TextFunction(Object.assign({}, args, { text: text[i][0] }))
+-                .text,
+-              text[i][1],
+-              text[i][2]
+-            ]);
++            tmpText.push([encodeLine(text[i][0]), text[i][1], text[i][2]]);
+           } else {
+-            tmpText.push(
+-              utf8TextFunction(Object.assign({}, args, { text: text[i] })).text
+-            );
++            tmpText.push(encodeLine(text[i]));
+           }
+         } else {
+-          tmpText.push(
+-            utf8TextFunction(Object.assign({}, args, { text: text[i] })).text
+-          );
++          tmpText.push(encodeLine(text[i]));
+         }
+       }
+       parms.text = tmpText;
+     } else {
+-      parms.text = utf8TextFunction(
+-        Object.assign({}, args, { text: text })
+-      ).text;
++      parms.text = encodeLine(text);
+     }
++    mutex.actualText = actualText;
++    mutex.positionedText = positionedText;
+   };
+ 
+   jsPDFAPI.events.push(["postProcessText", utf8EscapeFunction]);
 diff --git a/packages/jsPDF/types/index.d.ts b/packages/jsPDF/types/index.d.ts
 index fd21f959..5c21bce2 100644
 --- a/packages/jsPDF/types/index.d.ts
